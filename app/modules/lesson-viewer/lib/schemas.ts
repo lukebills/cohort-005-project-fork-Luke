@@ -28,3 +28,39 @@ export const deleteCommentSchema = z.object({
   intent: z.literal("delete-comment"),
   commentId: z.coerce.number().int(),
 });
+
+const id = z.coerce.number().int().positive();
+
+export const lessonIdSchema = z.object({
+  lessonId: z.string().min(1).pipe(id),
+});
+
+export const submitQuizSchema = z.object({
+  intent: z.literal("submit-quiz"),
+  quizId: z.string().min(1).pipe(id),
+});
+
+const quizAnswerSchema = z.object({
+  questionId: z.string().min(1).pipe(id),
+  optionId: z.string().min(1).pipe(id),
+});
+
+/**
+ * The quiz form names each answer field `question-{questionId}` with the
+ * chosen option id as its value. A malformed pair is dropped, so the question
+ * scores as unanswered.
+ */
+export function parseQuizAnswers(formData: FormData): Record<number, number> {
+  const answers: Record<number, number> = {};
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("question-")) continue;
+    const parsed = quizAnswerSchema.safeParse({
+      questionId: key.slice("question-".length),
+      optionId: value,
+    });
+    if (parsed.success) {
+      answers[parsed.data.questionId] = parsed.data.optionId;
+    }
+  }
+  return answers;
+}

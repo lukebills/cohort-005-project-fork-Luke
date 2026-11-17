@@ -9,4 +9,7 @@ export {
   editCommentSchema,
   saveNoteSchema,
   deleteCommentSchema,
+  lessonIdSchema,
+  submitQuizSchema,
+  parseQuizAnswers,
 } from "./lib/schemas";

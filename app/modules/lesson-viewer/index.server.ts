@@ -18,6 +18,7 @@ export {
 export { getLessonThread, renderThread } from "./lib/thread.server";
 export {
   getQuizByLessonId,
+  getQuizForLesson,
   getQuizWithQuestions,
   getBestAttempt,
   computeResult,

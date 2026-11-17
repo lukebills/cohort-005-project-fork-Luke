@@ -6,8 +6,11 @@ import {
   deleteCommentSchema,
   editCommentSchema,
   flattenCourseLessons,
+  lessonIdSchema,
   lessonRef,
+  parseQuizAnswers,
   saveNoteSchema,
+  submitQuizSchema,
 } from "../index";
 
 describe("flattenCourseLessons", () => {
@@ -141,5 +144,54 @@ describe("comment schemas", () => {
       deleteCommentSchema.safeParse({ intent: "edit-comment", commentId: "1" })
         .success
     ).toBe(false);
+  });
+});
+
+describe("lessonIdSchema", () => {
+  it("coerces the route's lesson id to a number", () => {
+    expect(lessonIdSchema.parse({ lessonId: "18" })).toEqual({ lessonId: 18 });
+  });
+
+  it("rejects an empty or malformed id rather than reading it as 0", () => {
+    expect(lessonIdSchema.safeParse({ lessonId: "" }).success).toBe(false);
+    expect(lessonIdSchema.safeParse({ lessonId: "abc" }).success).toBe(false);
+    expect(lessonIdSchema.safeParse({ lessonId: "1.5" }).success).toBe(false);
+  });
+});
+
+describe("submitQuizSchema", () => {
+  it("coerces the quiz id", () => {
+    expect(
+      submitQuizSchema.parse({ intent: "submit-quiz", quizId: "7" })
+    ).toEqual({ intent: "submit-quiz", quizId: 7 });
+  });
+
+  it("rejects a missing or empty quiz id", () => {
+    expect(submitQuizSchema.safeParse({ intent: "submit-quiz" }).success).toBe(
+      false
+    );
+    expect(
+      submitQuizSchema.safeParse({ intent: "submit-quiz", quizId: "" }).success
+    ).toBe(false);
+  });
+});
+
+describe("parseQuizAnswers", () => {
+  it("maps each question-{id} field to the chosen option id", () => {
+    const form = new FormData();
+    form.set("intent", "submit-quiz");
+    form.set("quizId", "7");
+    form.set("question-3", "12");
+    form.set("question-4", "15");
+    expect(parseQuizAnswers(form)).toEqual({ 3: 12, 4: 15 });
+  });
+
+  it("skips answers whose question or option id is malformed or empty", () => {
+    const form = new FormData();
+    form.set("question-x", "12");
+    form.set("question-5", "");
+    form.set("question-6", "abc");
+    form.set("question-8", "9");
+    expect(parseQuizAnswers(form)).toEqual({ 8: 9 });
   });
 });
