@@ -77,6 +77,57 @@ export type QuestionResult = {
   correctOptionId: number | null;
 };
 
+type GradedQuestion = { id: number };
+type GradedOption = { id: number; questionId: number; isCorrect: boolean };
+
+function gradeAnswers(
+  questions: GradedQuestion[],
+  options: GradedOption[],
+  selectedAnswers: Record<number, number>
+): QuestionResult[] {
+  return questions.map((q) => {
+    const selected = selectedAnswers[q.id];
+    if (!selected) {
+      return {
+        questionId: q.id,
+        correct: false,
+        selectedOptionId: null,
+        correctOptionId: null,
+      };
+    }
+    const correctOptionId =
+      options.find((o) => o.questionId === q.id && o.isCorrect)?.id ?? null;
+    return {
+      questionId: q.id,
+      correct: selected === correctOptionId,
+      selectedOptionId: selected,
+      correctOptionId,
+    };
+  });
+}
+
+function saveAttempt(
+  attempt: { userId: number; quizId: number; score: number; passed: boolean },
+  questionResults: QuestionResult[]
+) {
+  return db.transaction((tx) => {
+    const inserted = tx.insert(quizAttempts).values(attempt).returning().get();
+    const answers = questionResults.flatMap((result) =>
+      result.selectedOptionId === null
+        ? []
+        : [
+            {
+              attemptId: inserted.id,
+              questionId: result.questionId,
+              selectedOptionId: result.selectedOptionId,
+            },
+          ]
+    );
+    if (answers.length > 0) tx.insert(quizAnswers).values(answers).run();
+    return inserted;
+  });
+}
+
 export function computeResult(
   userId: number,
   quizId: number,
@@ -95,74 +146,23 @@ export function computeResult(
       .where(eq(quizQuestions.quizId, quizId))
       .orderBy(quizQuestions.position)
       .all();
-
     const options = getOptionsForQuestions(questions.map((q) => q.id));
+    const questionResults = gradeAnswers(questions, options, selectedAnswers);
 
-    let correct = 0;
+    const correct = questionResults.filter((r) => r.correct).length;
     const total = questions.length;
-    const questionResults: QuestionResult[] = [];
-
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const selected = selectedAnswers[q.id];
-
-      if (!selected) {
-        questionResults.push({
-          questionId: q.id,
-          correct: false,
-          selectedOptionId: null,
-          correctOptionId: null,
-        });
-        continue;
-      }
-
-      const correctOptionId =
-        options.find((o) => o.questionId === q.id && o.isCorrect === true)
-          ?.id ?? null;
-
-      const isCorrect = selected === correctOptionId;
-      if (isCorrect) correct++;
-
-      questionResults.push({
-        questionId: q.id,
-        correct: isCorrect,
-        selectedOptionId: selected,
-        correctOptionId,
-      });
-    }
-
-    const scoreValue = total > 0 ? correct / total : 0;
-    const passed = scoreValue > 0.7;
-    const grade = calculateGrade(scoreValue);
-
-    const attempt = db.transaction((tx) => {
-      const inserted = tx
-        .insert(quizAttempts)
-        .values({ userId, quizId, score: scoreValue, passed })
-        .returning()
-        .get();
-
-      const answers = questionResults.flatMap((result) =>
-        result.selectedOptionId === null
-          ? []
-          : [
-              {
-                attemptId: inserted.id,
-                questionId: result.questionId,
-                selectedOptionId: result.selectedOptionId,
-              },
-            ]
-      );
-      if (answers.length > 0) tx.insert(quizAnswers).values(answers).run();
-
-      return inserted;
-    });
+    const score = total > 0 ? correct / total : 0;
+    const passed = score > 0.7;
+    const attempt = saveAttempt(
+      { userId, quizId, score, passed },
+      questionResults
+    );
 
     return {
       attemptId: attempt.id,
-      score: scoreValue,
+      score,
       passed,
-      grade,
+      grade: calculateGrade(score),
       totalCorrect: correct,
       totalQuestions: total,
       questionResults,
