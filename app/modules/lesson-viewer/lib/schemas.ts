@@ -32,17 +32,17 @@ export const deleteCommentSchema = z.object({
 const id = z.coerce.number().int().positive();
 
 export const lessonIdSchema = z.object({
-  lessonId: z.string().min(1).pipe(id),
+  lessonId: id,
 });
 
 export const submitQuizSchema = z.object({
   intent: z.literal("submit-quiz"),
-  quizId: z.string().min(1).pipe(id),
+  quizId: id,
 });
 
 const quizAnswerSchema = z.object({
-  questionId: z.string().min(1).pipe(id),
-  optionId: z.string().min(1).pipe(id),
+  questionId: id,
+  optionId: id,
 });
 
 /**

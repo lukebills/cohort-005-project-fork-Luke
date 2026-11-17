@@ -54,6 +54,12 @@ describe("noteEditorState", () => {
     expect(state.canSave).toBe(true);
   });
 
+  it("does not offer Save for clearing a saved note, since the action rejects a blank body", () => {
+    const state = noteEditorState({ ...base, savedBody: "hello", draft: "" });
+    expect(state.canSave).toBe(false);
+    expect(state.status).toEqual({ kind: "unsaved" });
+  });
+
   it("marks an edited saved note as unsaved", () => {
     const state = noteEditorState({
       ...base,

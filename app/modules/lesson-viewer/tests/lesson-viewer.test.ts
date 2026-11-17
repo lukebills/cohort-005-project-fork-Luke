@@ -194,4 +194,11 @@ describe("parseQuizAnswers", () => {
     form.set("question-8", "9");
     expect(parseQuizAnswers(form)).toEqual({ 8: 9 });
   });
+
+  it("ignores fields that are not answers", () => {
+    const form = new FormData();
+    form.set("selected-3", "4");
+    form.set("quizId", "7");
+    expect(parseQuizAnswers(form)).toEqual({});
+  });
 });
