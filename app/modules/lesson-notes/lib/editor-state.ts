@@ -12,7 +12,12 @@ export type NoteEditorState = {
   status: NoteEditorStatus;
 };
 
-export function deriveNoteEditorState({
+/**
+ * What the lesson's note editor shows for the draft a Student is typing:
+ * the character count, whether Save is offered, and the status line.
+ * Pure, so the component holds only the draft.
+ */
+export function noteEditorState({
   draft,
   savedBody,
   maxLength,
@@ -23,10 +28,12 @@ export function deriveNoteEditorState({
   maxLength: number;
   saving: boolean;
 }): NoteEditorState {
-  const length = draft.length;
+  // The save action trims the body, so judge what will actually be stored.
+  const body = draft.trim();
+  const length = body.length;
   const tooLong = length > maxLength;
-  const blank = draft.trim().length === 0;
-  const dirty = draft !== (savedBody ?? "");
+  const blank = length === 0;
+  const dirty = body !== (savedBody ?? "");
 
   const status: NoteEditorStatus = saving
     ? { kind: "saving" }

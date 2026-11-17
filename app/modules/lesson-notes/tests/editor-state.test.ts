@@ -24,7 +24,7 @@ describe("noteEditorState", () => {
   it("does not offer Save for a draft that is only whitespace", () => {
     const state = noteEditorState({ ...base, draft: "   " });
     expect(state.canSave).toBe(false);
-    expect(state.status).toEqual({ kind: "unsaved" });
+    expect(state.status).toEqual({ kind: "empty" });
   });
 
   it("reports saved and withholds Save when the draft matches the saved note", () => {
@@ -35,6 +35,23 @@ describe("noteEditorState", () => {
     });
     expect(state.canSave).toBe(false);
     expect(state.status).toEqual({ kind: "saved" });
+  });
+
+  it("reports saved when the draft differs from the saved note only by surrounding whitespace, since the server trims it", () => {
+    const state = noteEditorState({
+      ...base,
+      savedBody: "hello",
+      draft: "hello\n",
+    });
+    expect(state.canSave).toBe(false);
+    expect(state.status).toEqual({ kind: "saved" });
+  });
+
+  it("counts and limits the trimmed draft, which is what the server stores", () => {
+    const state = noteEditorState({ ...base, draft: ` ${"a".repeat(10)} ` });
+    expect(state.length).toBe(10);
+    expect(state.tooLong).toBe(false);
+    expect(state.canSave).toBe(true);
   });
 
   it("marks an edited saved note as unsaved", () => {
